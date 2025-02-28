@@ -56,7 +56,8 @@ public class Vault {
 
             // Decrypt vault data using vault key
             byte[] decryptedData = decryptAESGCM(encryptedVaultData, vaultKey);
-            vaultData = new JSONObject(new String(decryptedData, StandardCharsets.UTF_8));
+            vaultData = new JSONObject();
+            vaultData.put(new String(decryptedData, StandardCharsets.UTF_8), null);
 
             System.out.println("Vault successfully loaded.");
         } else {

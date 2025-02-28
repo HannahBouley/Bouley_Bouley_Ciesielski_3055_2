@@ -19,6 +19,7 @@ class Driver {
 
     public static void main(String[] args) {
         // Load (unseal) the vault at startup
+        
         try {
             Vault.loadVault();
         } catch (Exception e) {
@@ -39,6 +40,18 @@ class Driver {
 
         // Placeholder: Command-line handling can be added here
         System.out.println("Vault loaded successfully. Add CLI functionality here.");
+        
+
+        // Display the help menu if no args are inputed 
+        if (args.length < 1){
+
+            System.out.println(Menu.DisplayMenuText());
+           
+        }
+        
+
+
+        handleCommandLineInputs(args);
     }
 
     /**
@@ -47,22 +60,35 @@ class Driver {
      */
     public static void handleCommandLineInputs(String[] args) {
         // An array of options
-        LongOption[] argsList = new LongOption[8];
+        LongOption[] argsList = new LongOption[3];
+
+        argsList[0] = new LongOption("add", false, 'a');
+        argsList[1] = new LongOption("service", true, 's');
+        argsList[2] = new LongOption("user", true, 'u');
 
         // The current option being processed
         Tuple<Character, String> currOpt;
 
         // Set up a new parser to parse the options
         OptionParser parser = new OptionParser(args);
-        parser.setOptString(null);
+        parser.setOptString("as:u:");
         parser.setLongOpts(argsList);
 
         // Gets the next option in the command line args
         while (parser.getOptIdx() != args.length) {
             currOpt = parser.getLongOpt(false);
 
-            switch (parser) {
-                case null:
+            switch (currOpt.getFirst()) {
+                case 'a':
+
+                    break;
+
+                case 's':
+
+                    break;
+
+                case 'u':
+
                     break;
                 default:
                     break;
