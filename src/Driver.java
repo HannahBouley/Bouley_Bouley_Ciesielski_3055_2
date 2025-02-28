@@ -1,7 +1,6 @@
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.PrintWriter;
-
 import merrimackutil.json.types.JSONObject;
 import merrimackutil.util.Tuple;
 import merrimackutil.json.types.JSONArray;
@@ -10,88 +9,64 @@ import merrimackutil.cli.OptionParser;
 import merrimackutil.json.JsonIO;
 import merrimackutil.json.parser.JSONParser;
 
-class Driver{
+/**
+ * Driver class for the password manager application.
+ */
+class Driver {
 
     private static final String VAULT_JSON_PATH = "vault.json";
-
     private static File vaultFile = new File(VAULT_JSON_PATH);
 
     public static void main(String[] args) {
-        
-        // Set up the vault
-        initilizeJsonDataBase();
-        
-    }
-
-    /**
-     * Creates new JSON Database or loads an existing database
-     */
-    public static void initilizeJsonDataBase(){
-
+        // Load (unseal) the vault at startup
         try {
-            JSONObject root;
-
-            if (vaultFile.exists()){
-                root = JsonIO.readObject(vaultFile);
-                System.out.println("Loaded exisiting valut");
-            } else {
-                System.out.println("Creating a new JSON database");
-                root = new JSONObject();
-
-                writeSerializedObject(root, vaultFile);
-            }
+            Vault.loadVault();
         } catch (Exception e) {
-            System.out.println("There was an error initilizing the databse " + e.getMessage());
+            System.out.println("Error loading vault: " + e.getMessage());
             e.printStackTrace();
+            return;
         }
-    }
 
-    /**
-     * Creates the new json file
-     * @param obj
-     * @param jsonFile
-     * @throws FileNotFoundException
-     */
-    private static void writeSerializedObject(JSONObject obj, File jsonFile) throws FileNotFoundException {
-        try (PrintWriter out = new PrintWriter(jsonFile)) {
-            out.println(obj.toJSON());
-        }
+        // Ensure vault is sealed before the application exits
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+            try {
+                System.out.println("Sealing vault before exit...");
+                Vault.sealVault();
+            } catch (Exception e) {
+                System.err.println("Error sealing vault: " + e.getMessage());
+            }
+        }));
+
+        // Placeholder: Command-line handling can be added here
+        System.out.println("Vault loaded successfully. Add CLI functionality here.");
     }
 
     /**
      * Handles commands from the command line interface
      * @param args
      */
-    public static void handleCommandLineInputs(String[] args){
-
+    public static void handleCommandLineInputs(String[] args) {
         // An array of options
         LongOption[] argsList = new LongOption[8];
-
-        // The operations
 
         // The current option being processed
         Tuple<Character, String> currOpt;
 
-        // Set up a new parser to pase the options
-        OptionParser paser = new OptionParser(args);
-        paser.setOptString(null);
-        paser.setLongOpts(argsList);
+        // Set up a new parser to parse the options
+        OptionParser parser = new OptionParser(args);
+        parser.setOptString(null);
+        parser.setLongOpts(argsList);
 
         // Gets the next option in the command line args
-        while(paser.getOptIdx() != args.length){
-         
-            currOpt = paser.getLongOpt(false);
+        while (parser.getOptIdx() != args.length) {
+            currOpt = parser.getLongOpt(false);
 
-            switch (paser) {
+            switch (parser) {
                 case null:
-                    
                     break;
-            
                 default:
                     break;
             }
         }
-
-
     }
 }
