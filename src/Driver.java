@@ -1,6 +1,8 @@
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.PrintWriter;
+import java.util.Scanner;
+
 import merrimackutil.json.types.JSONObject;
 import merrimackutil.util.Tuple;
 import merrimackutil.json.types.JSONArray;
@@ -19,9 +21,10 @@ class Driver {
 
     public static void main(String[] args) {
         // Load (unseal) the vault at startup
+        Vault vault = new Vault();
         
         try {
-            Vault.loadVault();
+            vault.loadVault();
         } catch (Exception e) {
             System.out.println("Error loading vault: " + e.getMessage());
             e.printStackTrace();
@@ -32,7 +35,7 @@ class Driver {
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
             try {
                 System.out.println("Sealing vault before exit...");
-                Vault.sealVault();
+                vault.sealVault();
             } catch (Exception e) {
                 System.err.println("Error sealing vault: " + e.getMessage());
             }
@@ -81,6 +84,9 @@ class Driver {
             switch (currOpt.getFirst()) {
                 case 'a':
 
+                    String service = currOpt.getSecond();
+
+                    
                     break;
 
                 case 's':
