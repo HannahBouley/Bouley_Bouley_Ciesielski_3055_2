@@ -19,6 +19,15 @@ class Driver {
     private static final String VAULT_JSON_PATH = "vault.json";
     private static File vaultFile = new File(VAULT_JSON_PATH);
 
+    private static boolean addService = false;
+    private static boolean addUserName = false;
+    private static boolean generatePassword = false;
+    private static boolean generateKeyPair = false;
+
+    private static String service = null;
+    private static String user = null;
+    private static int passwordLen = 0;
+
     public static void main(String[] args) {
         // Load (unseal) the vault at startup
         Vault vault = new Vault();
@@ -63,11 +72,13 @@ class Driver {
      */
     public static void handleCommandLineInputs(String[] args) {
         // An array of options
-        LongOption[] argsList = new LongOption[3];
+        LongOption[] argsList = new LongOption[5];
 
         argsList[0] = new LongOption("add", false, 'a');
         argsList[1] = new LongOption("service", true, 's');
         argsList[2] = new LongOption("user", true, 'u');
+        argsList[3] = new LongOption("gen", true, 'g');
+        argsList[4] = new LongOption("key", true, 'k');
 
         // The current option being processed
         Tuple<Character, String> currOpt;
@@ -84,16 +95,26 @@ class Driver {
             switch (currOpt.getFirst()) {
                 case 'a':
 
-                    String service = currOpt.getSecond();
+                    addService = true;
 
-                    
                     break;
 
                 case 's':
 
+                    service = currOpt.getSecond();
                     break;
 
                 case 'u':
+
+                    user = currOpt.getSecond();
+                    break;
+
+                // end of command line inputs
+
+                case 'g':
+
+                    passwordLen = Integer.parseInt(currOpt.getSecond());
+                case '?':
 
                     break;
                 default:

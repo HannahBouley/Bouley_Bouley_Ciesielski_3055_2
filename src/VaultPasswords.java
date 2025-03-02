@@ -2,6 +2,7 @@ import merrimackutil.json.types.JSONArray;
 import merrimackutil.json.types.JSONObject;
 import merrimackutil.json.JsonIO;
 import javax.crypto.Cipher;
+import javax.crypto.SecretKey;
 import javax.crypto.spec.GCMParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
 import java.io.File;
@@ -29,7 +30,7 @@ public class VaultPasswords {
                 vault = JsonIO.readObject(file);
                 
                 // Load vault key
-                if (vault.has("vaultkey")) {
+                if (vault.containsKey("vaultkey")) {
                     JSONObject vaultKeyObject = vault.getObject("vaultkey");
                     String keyBase64 = vaultKeyObject.getString("key");
 
@@ -57,7 +58,7 @@ public class VaultPasswords {
                 vault = new JSONObject();
             }
 
-            JSONArray passwords = vault.has("passwords") ? vault.getArray("passwords") : new JSONArray();
+            JSONArray passwords = vault.containsKey("passwords") ? vault.getArray("passwords") : new JSONArray();
 
             // Generate IV (12 bytes)
             byte[] iv = generateIV();

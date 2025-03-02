@@ -3,6 +3,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.security.SecureRandom;
 import java.util.Base64;
+import java.util.Collection;
 import java.util.Scanner;
 import javax.crypto.*;
 import javax.crypto.spec.GCMParameterSpec;
@@ -46,8 +47,7 @@ public class Vault {
         System.out.print("Enter your vault password: ");
         char[] hiddenPassword = console.readPassword(); // Hide password echo
 
-        String password = new String(hiddenPassword); // Store password into a new String type\
-        System.out.println(password);
+        String password = new String(hiddenPassword); // Store password into a new String type
 
         // Clean up
         scanner.close();
@@ -78,7 +78,7 @@ public class Vault {
             // Decrypt vault data using vault key
             byte[] decryptedData = decryptAESGCM(encryptedVaultData, vaultKey, iv);
             vaultData = new JSONObject();
-            vaultData.put(new String(decryptedData, StandardCharsets.UTF_8), null);
+            vaultData.put(new String(decryptedData, StandardCharsets.UTF_8), new JSONObject());
           
             
 
@@ -116,12 +116,25 @@ public class Vault {
         // Encrypt vault data using vault key
         byte[] encryptedVaultData = encryptAESGCM(vaultData.toJSON().getBytes(StandardCharsets.UTF_8), vaultKey, iv);
 
+        
         // Write salt + encrypted vault key + encrypted vault data to vault.json
-        try (FileOutputStream fos = new FileOutputStream(VAULT_JSON_PATH)) {
-            fos.write(Base64.getEncoder().encodeToString(salt));
-            fos.write(encryptedVaultKey);
-            fos.write(encryptedVaultData);
+        
+        vaultData.put("key", Base64.getEncoder().encodeToString(encryptedVaultKey));
+        vaultData.put("key", Base64.getEncoder().encodeToString(encryptedVaultKey));
+
+        try(PrintWriter out = new PrintWriter(VAULT_JSON_PATH)){
+            out.println(vaultData.toJSON());
         }
+        
+
+
+
+        String encodedSalt = Base64.getEncoder().encodeToString(salt);
+    
+        vaultData.put("salt", encodedSalt);
+        System.out.println(encodedSalt);    
+      
+
 
 
         
@@ -214,6 +227,16 @@ public class Vault {
         new SecureRandom().nextBytes(iv);
 
         return iv;
+    }
+
+    /**
+     * Generates a new secret key
+     * @return
+     */
+    private static SecretKey generateKey(byte[] key){
+        SecretKey secretKey = new SecretKeySpec(key, "AES");
+
+        return secretKey;
     }
 
     /**
