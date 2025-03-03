@@ -7,6 +7,7 @@ import java.util.Base64;
 public class PrivKeys {
     private static final int GCM_TAG_LENGTH = 128;
 
+    //Encrypts a plaintext string using AES-GCM with the provided key and IV.
     public static String encrypt(String plaintext, String base64Key, String base64Iv) {
         try {
             Cipher cipher = Cipher.getInstance("AES/GCM/NoPadding");
@@ -24,6 +25,7 @@ public class PrivKeys {
         }
     }
 
+    // Decrypts an encrypted Base64-encoded string using AES-GCM with provided key and IV.
     public static String decrypt(String encryptedText, String base64Key, String base64Iv) {
         try {
             Cipher cipher = Cipher.getInstance("AES/GCM/NoPadding");

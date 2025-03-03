@@ -15,6 +15,8 @@ import javax.crypto.spec.SecretKeySpec;
 import org.bouncycastle.crypto.generators.SCrypt;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
 
+
+import merrimackutil.json.types.JSONArray;
 import merrimackutil.json.types.JSONObject;
 
 /**
@@ -50,8 +52,6 @@ public class Vault implements Serializable{
 
         // Add provider
         Security.addProvider(new BouncyCastleProvider());
-
-        // Console class used for confidentiality
         Console console = System.console();
 
         if (console == null){
@@ -161,6 +161,7 @@ public class Vault implements Serializable{
         SecretKeyFactory factory = SecretKeyFactory.getInstance("PBKDF2WithHmacSHA256");
         return Base64.getEncoder().encodeToString(factory.generateSecret(spec).getEncoded());
     }
+    
 
     /**
      * Create a new vault with the given password.
@@ -183,16 +184,35 @@ public class Vault implements Serializable{
         vaultData.put("vaultKey", vaultKeyObj);
 
         // Encrypt the vault key using root key
-        //byte[] encryptedVaultKey = encryptAESGCM(vaultKey.toString().getBytes(), rootKey.toString().getBytes(), iv);
+        byte[] encryptedVaultKey = encryptAESGCM(vaultKey.getEncoded(), rootKey.getEncoded());
 
         // Encrypt vault data using vault key
-        //byte[] encryptedVaultData = encryptAESGCM(vaultData.toJSON().getBytes(StandardCharsets.UTF_8), vaultKey, iv);
+        byte[] encryptedVaultData = encryptAESGCM(vaultData.toJSON().getBytes(StandardCharsets.UTF_8), vaultKey.getEncoded());
+
+        
+        // Write salt + encrypted vault key + encrypted vault data to vault.json
+        
+        vaultData.put("key", Base64.getEncoder().encodeToString(encryptedVaultKey));
+        vaultData.put("key", Base64.getEncoder().encodeToString(encryptedVaultKey));
 
         try(PrintWriter out = new PrintWriter(VAULT_JSON_PATH)){
-         
             out.println(vaultData.toJSON());
         }
         
+
+
+
+        String encodedSalt = Base64.getEncoder().encodeToString(salt);
+    
+        vaultData.put("salt", encodedSalt);
+        System.out.println(encodedSalt);    
+      
+
+
+
+        
+        
+
         System.out.println("New vault created and encrypted.");
     }
 
@@ -208,10 +228,10 @@ public class Vault implements Serializable{
         }
 
         // Encrypt the vault key using root key
-        //byte[] encryptedVaultKey = encryptAESGCM(vaultKey, rootKey, iv);
+        byte[] encryptedVaultKey = encryptAESGCM(vaultKey.getEncoded(), rootKey.getEncoded());
 
         // Encrypt vault data using vault key
-        //byte[] encryptedVaultData = encryptAESGCM(vaultData.toJSON().getBytes(StandardCharsets.UTF_8), vaultKey, iv);
+        byte[] encryptedVaultData = encryptAESGCM(vaultData.toJSON().getBytes(StandardCharsets.UTF_8), vaultKey.getEncoded());
 
         // Retrieve existing salt
         byte[] salt = new byte[SALT_LENGTH];
@@ -222,8 +242,8 @@ public class Vault implements Serializable{
         // Write salt + encrypted vault key + encrypted vault data to vault.json
         try (FileOutputStream fos = new FileOutputStream(VAULT_JSON_PATH)) {
             fos.write(salt);
-            //fos.write(encryptedVaultKey);
-            //fos.write(encryptedVaultData);
+            fos.write(encryptedVaultKey);
+            fos.write(encryptedVaultData);
         }
 
         System.out.println("Vault sealed and saved.");

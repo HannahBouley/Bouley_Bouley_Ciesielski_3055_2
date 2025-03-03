@@ -35,6 +35,10 @@ class Driver {
                 
         try {
             vault.loadVault();
+        } catch (FileNotFoundException e) {
+            System.out.println("Vault file not found: " + e.getMessage());
+            e.printStackTrace();
+            return;
         } catch (Exception e) {
             System.out.println("Error loading vault: " + e.getMessage());
             e.printStackTrace();
@@ -51,19 +55,12 @@ class Driver {
             }
         }));
 
-        // Placeholder: Command-line handling can be added here
-        System.out.println("Vault loaded successfully. Add CLI functionality here.");
-        
-
-        // Display the help menu if no args are inputed 
-        if (args.length < 1){
-
+        // Display the help menu if no args are inputted and return immediately
+        if (args.length < 1) {
             System.out.println(Menu.DisplayMenuText());
-           
+            return;
         }
         
-
-
         handleCommandLineInputs(args);
     }
 
@@ -83,7 +80,7 @@ class Driver {
         argsList[4] = new LongOption("key", true, 'k');
 
         // The current option being processed
-        Tuple<Character, String> currOpt;
+        Tuple<Character, String> currOpt = null;
 
         // Set up a new parser to parse the options
         OptionParser parser = new OptionParser(args);
@@ -93,31 +90,22 @@ class Driver {
         // Gets the next option in the command line args
         while (parser.getOptIdx() != args.length) {
             currOpt = parser.getLongOpt(false);
+            if (currOpt == null) continue;
 
             switch (currOpt.getFirst()) {
                 case 'a':
-
                     addService = true;
-
                     break;
-
                 case 's':
-
                     service = currOpt.getSecond();
                     break;
-
                 case 'u':
-
                     user = currOpt.getSecond();
                     break;
-
-                // end of command line inputs
-
                 case 'g':
-
                     passwordLen = Integer.parseInt(currOpt.getSecond());
+                    break;
                 case '?':
-
                     break;
                 default:
                     break;
