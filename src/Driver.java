@@ -27,11 +27,12 @@ class Driver {
     private static String service = null;
     private static String user = null;
     private static int passwordLen = 0;
+    private static String password;
 
     public static void main(String[] args) {
         // Load (unseal) the vault at startup
         Vault vault = new Vault();
-        
+                
         try {
             vault.loadVault();
         } catch (Exception e) {
@@ -65,6 +66,7 @@ class Driver {
 
         handleCommandLineInputs(args);
     }
+
 
     /**
      * Handles commands from the command line interface
