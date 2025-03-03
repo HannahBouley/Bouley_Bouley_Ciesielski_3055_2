@@ -1,5 +1,8 @@
-<<<<<<< HEAD
-{"vaultKey":{"ke
-=======
-{"privkeys":[],"passwords":[],"vaultkey":{"key":"b+ShJgEVsf9A16Dm2GG74vwk+oUWipfB9I3BRXUwCsRmiNBCAqBbEhf8hWvYAJpC68nSOqo2O+tqMYkf"},"iv":"b+ShJgEVsf9A16Dm","key":"b+ShJgEVsf9A16Dm2GG74vwk+oUWipfB9I3BRXUwCsRmiNBCAqBbEhf8hWvYAJpC68nSOqo2O+tqMYkf"}
->>>>>>> ca282ccd7c86ac2a076a480a905764fbea0456c8
+{
+   "salt" : "/F95UdXfKJIvdqUEUen2Ng==",
+   "vaultKey" : {
+      "iv" : "Cq/JbH7PAdU7B51w",
+      "key" : "Cq/JbH7PAdU7B51wTudD/jdLFz3vR6nRtYnyYZw9BHD7CH0Z8hFVSYeRbumTmPRZYARL3kO1osVMkQAG"
+   }
+}
+
