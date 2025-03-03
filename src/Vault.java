@@ -1,34 +1,50 @@
 import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
+import java.security.Security;
+import java.security.spec.InvalidKeySpecException;
+import java.security.spec.KeySpec;
 import java.util.Base64;
-import java.util.Collection;
-import java.util.Scanner;
 import javax.crypto.*;
 import javax.crypto.spec.GCMParameterSpec;
+import javax.crypto.spec.PBEKeySpec;
 import javax.crypto.spec.SecretKeySpec;
 import org.bouncycastle.crypto.generators.SCrypt;
+import org.bouncycastle.jce.provider.BouncyCastleProvider;
 
+import merrimackutil.json.JsonIO;
 import merrimackutil.json.types.JSONArray;
 import merrimackutil.json.types.JSONObject;
-import merrimackutil.json.JSONSerializable;
-import merrimackutil.json.JsonIO;
 
 /**
  * Vault class to manage the encrypted vault file.
  */
-public class Vault {
+public class Vault implements Serializable{
     private static final String VAULT_JSON_PATH = "vault.json";
+    private static final String HASHED_PASSWORD_PATH = "password.hash";
+    private static final String HASHED_SALT_PATH = "salt.hash";
     private static final int GCM_TAG_LENGTH = 16;
     private static final int SALT_LENGTH = 16;
     private static final int VAULT_KEY_LENGTH = 32; // 256-bit vault key
-    private static byte[] rootKey;  // Derived from user password
-    private static byte[] vaultKey; // Used to encrypt/decrypt vault contents
-    private static JSONObject vaultData; // In-memory vault contents
 
-    // Generate a new IV
-    private static byte[] iv = generateIv();
+    private static byte[] vaultKeyIv = null;
+    private static SecretKey rootKey;  // Derived from user password
+    private static SecretKey vaultKey; // Used to encrypt/decrypt vault contents
+    private static JSONObject vaultData; // In-memory vault contents
+    private static SecretKey secretKey;
+    private static byte[] encryptedVaultKey;
+    private static byte[] encryptedRootKey;
+    private static byte[] iv;
+ 
+    private static File saltFile;
+    private static String password;
+    private static byte[] salt;
+    private static File passwordFile;
+    private static File vaultFile = new File(VAULT_JSON_PATH);
+    private static Collection collection;
 
     /**
      * Load the vault from the vault.json file.
@@ -36,40 +52,109 @@ public class Vault {
      * @throws Exception
      */
     public void loadVault() throws Exception {
+
+        // Add provider
+        Security.addProvider(new BouncyCastleProvider());
         Console console = System.console();
-        if (console == null) {
-            System.out.println("No console available.");
-            return;
-        }
-    
-        Scanner scanner = new Scanner(System.in);
-        System.out.print("Enter your vault password: ");
-        char[] hiddenPassword = console.readPassword();
-        String password = new String(hiddenPassword);
-        scanner.close();
-    
-        File vaultFile = new File(VAULT_JSON_PATH);
-        if (!vaultFile.exists()) {
-            System.out.println("No vault found. Creating a new one...");
-            createNewVault(password);
-            return;
+
+        if (console == null){
+            System.out.println("No console available");
         }
 
-        JSONObject vaultJson = JsonIO.readObject(vaultFile);
-    
-        byte[] salt = Base64.getDecoder().decode(vaultJson.getString("salt"));
-        rootKey = deriveKey(password, salt);
-    
-        JSONObject vaultKeyObject = vaultJson.getObject("vaultkey");
-        byte[] vaultIv = Base64.getDecoder().decode(vaultKeyObject.getString("iv"));
-        byte[] encryptedVaultKey = Base64.getDecoder().decode(vaultKeyObject.getString("key"));
-    
-        vaultKey = decryptAESGCM(encryptedVaultKey, rootKey, vaultIv);
-    
-        // Load vault data
-        vaultData = vaultJson;
+        // Check for required files
+        if (!Files.exists(Paths.get(HASHED_PASSWORD_PATH)) && !Files.exists(Paths.get(HASHED_SALT_PATH)) && !Files.exists(Paths.get(VAULT_JSON_PATH))){
+           
+            System.out.println("Enter a new vault password: ");
+            char[] hiddenPassword = console.readPassword(); // Hide password echo
+           
+            password = new String(hiddenPassword); // Store password into a new String type
+
+            // Create the password file which will store the hashed password
+            passwordFile = new File(HASHED_PASSWORD_PATH);
+            saltFile = new File(HASHED_SALT_PATH);
+
+            // Generate salt
+            salt = new byte[16];
+            new SecureRandom().nextBytes(salt);
+            Files.write(Paths.get(HASHED_SALT_PATH), salt);
+
+            // Create hashed password
+            String hashedPassword = hashPassword(password, salt);
+            Files.write(Paths.get(HASHED_PASSWORD_PATH), hashedPassword.getBytes());
+
+            // Generate a new vault key (to be encrypted by the root key)
+            KeyGenerator gen = KeyGenerator.getInstance("AES");
+            gen.init(256);
+            vaultKey = gen.generateKey();
+
+            // Generate a new root key from the password
+            encryptedRootKey = deriveKey(password, salt);
+            rootKey = new SecretKeySpec(encryptedRootKey, "AES");
+
+            // The encrypted vault key
+            encryptedVaultKey = encryptAESGCM(vaultKey.getEncoded(), rootKey.getEncoded());
+            
+            createNewVault(password); // Create a new vault
+
+        }
+
+            else // If the files already exist
+            
+            {
+                // Get password input
+                System.out.println("Enter the vault password: ");
+                char[] hiddenPassword = console.readPassword();
+                byte[] salt = Files.readAllBytes(Paths.get(HASHED_SALT_PATH));
+
+                String password = new String(hiddenPassword);
+
+                // Check to see if the hashed password is the same
+                String storedHashed = new String(Files.readAllBytes(Paths.get(HASHED_PASSWORD_PATH)));
+            
+                String enteredHashed = hashPassword(password, salt);
+            
+                if (enteredHashed.equals(storedHashed)){
+                    System.out.println("Access Granted");
+
+                    // Decrypt logic
+                    byte[] fileData = Files.readAllBytes(vaultFile.toPath());
         
-        System.out.println("Vault successfully loaded.");
+                    // Extract encrypted vault key (next 48 bytes: 16-byte IV + 32-byte encrypted key)
+                    encryptedVaultKey = new byte[48];
+                    System.arraycopy(fileData, SALT_LENGTH, encryptedVaultKey, 0, 48);
+        
+                    // Decrypt vault key using root key
+                    encryptedVaultKey = decryptAESGCM(encryptedVaultKey.toString().getBytes(), rootKey.toString().getBytes());
+                    
+                    // Extract encrypted vault data (remaining bytes)
+                    byte[] encryptedVaultData = new byte[fileData.length - (SALT_LENGTH + 48)];
+                    System.arraycopy(fileData, SALT_LENGTH + 48, encryptedVaultData, 0, encryptedVaultData.length);
+        
+                    // Decrypt vault data using vault key
+                    byte[] decryptedData = decryptAESGCM(encryptedVaultData, vaultKey.getEncoded());
+                    vaultData = new JSONObject();
+                    vaultData.put(new String(decryptedData, StandardCharsets.UTF_8), new JSONObject());
+                  
+                    System.out.println("Vault successfully loaded.");
+                } else {
+                    System.out.println("Incorrect password. Access denied.");
+                    System.exit(1);
+                }    
+            }       
+    }
+
+    /**
+     * Hashes a specified password
+     * @param password
+     * @param salt
+     * @return
+     * @throws NoSuchAlgorithmException
+     * @throws InvalidKeySpecException
+     */
+    private static String hashPassword(String password, byte[] salt) throws NoSuchAlgorithmException, InvalidKeySpecException{
+        KeySpec spec = new PBEKeySpec(password.toCharArray(), salt, 65536, 256);
+        SecretKeyFactory factory = SecretKeyFactory.getInstance("PBKDF2WithHmacSHA256");
+        return Base64.getEncoder().encodeToString(factory.generateSecret(spec).getEncoded());
     }
     
 
@@ -79,124 +164,54 @@ public class Vault {
      * @param password
      * @throws Exception
      */
-   public static void createNewVault(String password) throws Exception {
-    byte[] salt = new byte[SALT_LENGTH];
-    new SecureRandom().nextBytes(salt);
-
-    // Derive root key from password
-    rootKey = deriveKey(password, salt);
-
-    // Generate a random vault key
-    vaultKey = new byte[VAULT_KEY_LENGTH];
-    new SecureRandom().nextBytes(vaultKey);
-
-    // Generate IV for vault key encryption
-    byte[] vaultIv = generateIv();
-
-    // Encrypt the vault key using root key
-    byte[] encryptedVaultKey = encryptAESGCM(vaultKey, rootKey, vaultIv);
-
-    // Initialize the vault JSON structure
-    vaultData = new JSONObject();
-    vaultData.put("vaultkey", new JSONObject());
-    vaultData.put("iv", Base64.getEncoder().encodeToString(vaultIv));
-    vaultData.put("key", Base64.getEncoder().encodeToString(encryptedVaultKey));
-    vaultData.put("passwords", new JSONArray());
-    vaultData.put("privkeys", new JSONArray());
+    public static void createNewVault(String password) throws Exception {
     
-    System.out.println("New vault created and encrypted.");
-    // Create an instance of Vault and call sealVault()
-    Vault vaultInstance = new Vault();
-    vaultInstance.sealVault(); 
-        }
-    
-        /**
-         * Seal the vault by saving the encrypted vault key and data to the vault.json file.
-         * 
-         * @throws Exception
-         */
-        public void sealVault() throws Exception {
-            if (vaultData == null) {
-                System.out.println("No vault loaded to seal.");
-                return;
-            }
-        
-            // Encrypt vault key using root key
-            byte[] vaultIv = generateIv();
-            byte[] encryptedVaultKey = encryptAESGCM(vaultKey, rootKey, vaultIv);
-        
-            // Store encrypted vault key
-            vaultData.getObject("vaultkey").put("key", Base64.getEncoder().encodeToString(encryptedVaultKey));
-            vaultData.put("iv", Base64.getEncoder().encodeToString(vaultIv));
-            vaultData.put("key", Base64.getEncoder().encodeToString(encryptedVaultKey));
-        
-            // Write to vault.json
-            try (PrintWriter out = new PrintWriter(VAULT_JSON_PATH)) {
-                out.println(vaultData.toJSON());
-            }
-        
-            System.out.println("Vault sealed and saved.");
+
+        collection = new Collection();
+
+        collection.addSaltValue(Base64.getEncoder().encodeToString(salt));
+  
+        collection.addIv(Base64.getEncoder().encodeToString(iv));
+        collection.addKey(Base64.getEncoder().encodeToString(encryptedVaultKey));
+
+        JsonIO.writeSerializedObject(collection, new File(VAULT_JSON_PATH));
+
+      
+        System.out.println("New vault created and encrypted.");
+    }
+
+    /**
+     * Seal the vault by saving the encrypted vault key and data to the vault.json file.
+     * 
+     * @throws Exception
+     */
+    public void sealVault() throws Exception {
+        if (vaultData == null) {
+            System.out.println("No vault loaded to seal.");
+            return;
         }
 
+        // Encrypt the vault key using root key
+        encryptedVaultKey = encryptAESGCM(vaultKey.getEncoded(), rootKey.getEncoded());
 
+        // Encrypt vault data using vault key
+        byte[] encryptedVaultData = encryptAESGCM(vaultData.toJSON().getBytes(StandardCharsets.UTF_8), vaultKey.getEncoded());
 
-
-
-
-
-        public void addPassword(String service, String user, String password) throws Exception {
-            byte[] iv = generateIv();
-            byte[] encryptedPassword = encryptAESGCM(password.getBytes(StandardCharsets.UTF_8), vaultKey, iv);
-        
-            JSONObject entry = new JSONObject();
-            entry.put("iv", Base64.getEncoder().encodeToString(iv));
-            entry.put("service", service);
-            entry.put("user", user);
-            entry.put("pass", Base64.getEncoder().encodeToString(encryptedPassword));
-        
-            vaultData.getArray("passwords").add(entry);
-            sealVault();
-        }
-        
-        public void addPrivateKey(String service, String privateKey) throws Exception {
-            byte[] iv = generateIv();
-            byte[] encryptedPrivateKey = encryptAESGCM(privateKey.getBytes(StandardCharsets.UTF_8), vaultKey, iv);
-        
-            JSONObject entry = new JSONObject();
-            entry.put("iv", Base64.getEncoder().encodeToString(iv));
-            entry.put("service", service);
-            entry.put("privkey", Base64.getEncoder().encodeToString(encryptedPrivateKey));
-        
-            vaultData.getArray("privkeys").add(entry);
-            sealVault();
-        }
-        
-        public String getPassword(String service) throws Exception {
-            for (Object obj : vaultData.getArray("passwords")) {
-                JSONObject entry = (JSONObject) obj;
-                if (entry.getString("service").equals(service)) {
-                    byte[] iv = Base64.getDecoder().decode(entry.getString("iv"));
-                    byte[] encryptedPass = Base64.getDecoder().decode(entry.getString("pass"));
-                    return new String(decryptAESGCM(encryptedPass, vaultKey, iv), StandardCharsets.UTF_8);
-                }
-            }
-            return null;
-        }
-        
-        public String getPrivateKey(String service) throws Exception {
-            for (Object obj : vaultData.getArray("privkeys")) {
-                JSONObject entry = (JSONObject) obj;
-                if (entry.getString("service").equals(service)) {
-                    byte[] iv = Base64.getDecoder().decode(entry.getString("iv"));
-                    byte[] encryptedKey = Base64.getDecoder().decode(entry.getString("privkey"));
-                    return new String(decryptAESGCM(encryptedKey, vaultKey, iv), StandardCharsets.UTF_8);
-                }
-            }
-            return null;
+        // Retrieve existing salt
+        byte[] salt = new byte[SALT_LENGTH];
+        try (FileInputStream fis = new FileInputStream(VAULT_JSON_PATH)) {
+            fis.read(salt);
         }
 
-        
+        // Write salt + encrypted vault key + encrypted vault data to vault.json
+        try (FileOutputStream fos = new FileOutputStream(VAULT_JSON_PATH)) {
+            fos.write(salt);
+            fos.write(encryptedVaultKey);
+            fos.write(encryptedVaultData);
+        }
 
+        System.out.println("Vault sealed and saved.");
+    }
 
     /**
      * Derive a key from the given password and salt using the SCrypt key derivation function.
@@ -217,18 +232,16 @@ public class Vault {
      * @return encrypted data
      * @throws Exception
      */
-    private static byte[] encryptAESGCM(byte[] data, byte[] key, byte[] iv) throws Exception {
+    private static byte[] encryptAESGCM(byte[] data, byte[] key) throws Exception {
         Cipher cipher = Cipher.getInstance("AES/GCM/NoPadding");
-        SecretKey secretKey = new SecretKeySpec(key, "AES");
-
-        /*
-        byte[] iv = new byte[12]; // 12-byte IV for GCM
-        new SecureRandom().nextBytes(iv);
-        */
-
-        GCMParameterSpec spec = new GCMParameterSpec(GCM_TAG_LENGTH * 8, iv);
+        secretKey = new SecretKeySpec(key, "AES");
         
 
+        iv = new byte[12];
+        new SecureRandom().nextBytes(iv);
+
+        GCMParameterSpec spec = new GCMParameterSpec(GCM_TAG_LENGTH * 8, iv);
+    
         cipher.init(Cipher.ENCRYPT_MODE, secretKey, spec);
         byte[] encryptedData = cipher.doFinal(data);
 
@@ -241,27 +254,6 @@ public class Vault {
     }
 
     /**
-     * Generates a new IV
-     * @return
-     */
-    private static byte[] generateIv(){
-        byte[] iv = new byte[12];
-        new SecureRandom().nextBytes(iv);
-
-        return iv;
-    }
-
-    /**
-     * Generates a new secret key
-     * @return
-     */
-    private static SecretKey generateKey(byte[] key){
-        SecretKey secretKey = new SecretKeySpec(key, "AES");
-
-        return secretKey;
-    }
-
-    /**
      * Decrypt data using AES-GCM with the given key.
      * 
      * @param encryptedData
@@ -269,20 +261,18 @@ public class Vault {
      * @return decrypted data
      * @throws Exception
      */
-    private static byte[] decryptAESGCM(byte[] encryptedData, byte[] key, byte[] iv) throws Exception {
+    private static byte[] decryptAESGCM(byte[] encryptedData, byte[] key) throws Exception {
         Cipher cipher = Cipher.getInstance("AES/GCM/NoPadding");
-        SecretKey secretKey = new SecretKeySpec(key, "AES");
+        // SecretKey secretKey = new SecretKeySpec(key, "AES");
 
-        /*
         byte[] iv = new byte[12];
-        System.arraycopy(encryptedData, 0, iv, 0, 12);
-*/
-        
-        GCMParameterSpec spec = new GCMParameterSpec(GCM_TAG_LENGTH * 8, iv);
+        new SecureRandom().nextBytes(iv);
+
+        GCMParameterSpec spec = new GCMParameterSpec(GCM_TAG_LENGTH * 8, iv); // 128
         cipher.init(Cipher.DECRYPT_MODE, secretKey, spec);
 
-        byte[] data = new byte[encryptedData.length - 12];
-        System.arraycopy(encryptedData, 12, data, 0, data.length);
+        byte[] data = new byte[encryptedData.length - 12]; //36
+        System.arraycopy(encryptedData, 12, data, 0, data.length); //36
 
         return cipher.doFinal(data);
     }
