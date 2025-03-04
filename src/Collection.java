@@ -4,21 +4,36 @@ import java.io.Serializable;
 import java.util.HashMap;
 
 import merrimackutil.json.JSONSerializable;
+import merrimackutil.json.JsonIO;
 import merrimackutil.json.types.JSONArray;
 import merrimackutil.json.types.JSONObject;
 import merrimackutil.json.types.JSONType;
 
 public class Collection implements JSONSerializable{
 
-    private HashMap<String, String> pair; // Key value pairs
+    private HashMap<String, JSONType> pair; // Key value pairs
     private String salt;
     private String vaultKey;
     private String iv;
     private String key;
 
+    /**
+     * Creates new collection with a simple hash map
+     */
     public Collection(){
         this.pair = new HashMap<>();
    
+    }
+
+    /**
+     * Gets the collection in serialized format and converts it into a deserialized form
+     * @param obj
+     * @throws InvalidObjectException
+     */
+    public Collection(JSONObject obj) throws InvalidObjectException {
+        this.pair = new HashMap<>();
+        deserialize(obj);
+
     }
 
     	/**
@@ -36,14 +51,22 @@ public class Collection implements JSONSerializable{
 	 * @return a JSON type either JSONObject or JSONArray.
 	 */
 	public JSONType toJSONType() {
-		JSONObject obj = new JSONObject();
-        JSONObject keyObj = new JSONObject();
+		JSONObject obj = new JSONObject(); // Main obj
+        JSONObject keyObj = new JSONObject(); // Vault key atributes
+        JSONArray passwordArry = new JSONArray();
+        JSONArray privateKeys = new JSONArray();
 
+        // Vault key
         keyObj.put("iv", iv);
         keyObj.put("key", key);
 
+        // Salt
 		obj.put("salt", salt);
         obj.put("vaultKey", keyObj);
+
+        obj.put("passwords", passwordArry);
+        obj.put("privKeys", privateKeys);
+        
 	
 		return obj;
 	}
@@ -65,12 +88,62 @@ public class Collection implements JSONSerializable{
         this.iv = iv;
     }
 
+    public void addData(String key, JSONType value){
 
-    @Override
-    public void deserialize(JSONType arg0) throws InvalidObjectException {
-     
-        throw new UnsupportedOperationException("Unimplemented method 'deserialize'");
     }
 
+    public boolean containsKey(String key){
+        return pair.get(key) != null;
+    }
 
+    public JSONArray getArray(String arry){
+        return JsonIO.readArray(arry);
+    }
+
+    public JSONObject getData(String k){
+        return (JSONObject) pair.get(k);
+    }
+
+    public void deserialize(JSONType obj) throws InvalidObjectException {
+        JSONObject tmp;
+        JSONObject key;
+        JSONArray block = null;
+  
+        if (obj instanceof JSONObject)
+        {
+          tmp = (JSONObject) obj;
+
+
+        // Get the passwords array in the json file
+        if (tmp.containsKey("passwords")){
+
+            block = tmp.getArray("passwords");
+
+                
+        pair.clear();
+        for (int i = 0; i < block.size(); i++)
+            pair.put(block.getObject(i).getString("user"), block.getObject(i));
+        }
+              
+        else if (tmp.get("vaultKey") != null){
+      
+            key = tmp.getObject("key");
+
+            pair.clear();
+            pair.put("key", key);
+            
+
+        }
+        
+    
+          else 
+            throw new InvalidObjectException("Expected a PubKeyRing object -- keys expected.");
+        }
+        else 
+          throw new InvalidObjectException("Expected a PubKeyRing object -- recieved array");
+  
+     
+     }
+
+    
 }

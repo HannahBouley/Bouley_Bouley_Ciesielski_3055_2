@@ -22,14 +22,14 @@ import merrimackutil.json.types.JSONObject;
 /**
  * Vault class to manage the encrypted vault file.
  */
-public class Vault implements Serializable{
+public class Vault{
     private static final String VAULT_JSON_PATH = "vault.json";
     private static final String HASHED_PASSWORD_PATH = "password.hash";
     private static final String HASHED_SALT_PATH = "salt.hash";
     private static final int GCM_TAG_LENGTH = 16;
     private static final int SALT_LENGTH = 16;
     private static final int VAULT_KEY_LENGTH = 32; // 256-bit vault key
-
+    
     private static byte[] vaultKeyIv = null;
     private static SecretKey rootKey;  // Derived from user password
     private static SecretKey vaultKey; // Used to encrypt/decrypt vault contents
@@ -101,6 +101,9 @@ public class Vault implements Serializable{
             else // If the files already exist
             
             {
+
+                Collection col = new Collection(JsonIO.readObject(new File(VAULT_JSON_PATH)));
+
                 // Get password input
                 System.out.println("Enter the vault password: ");
                 char[] hiddenPassword = console.readPassword();
@@ -116,15 +119,17 @@ public class Vault implements Serializable{
                 if (enteredHashed.equals(storedHashed)){
                     System.out.println("Access Granted");
 
-                    // Decrypt logic
+                    encryptedRootKey = deriveKey(password, salt);
+
                     byte[] fileData = Files.readAllBytes(vaultFile.toPath());
         
                     // Extract encrypted vault key (next 48 bytes: 16-byte IV + 32-byte encrypted key)
-                    encryptedVaultKey = new byte[48];
-                    System.arraycopy(fileData, SALT_LENGTH, encryptedVaultKey, 0, 48);
+                    //encryptedVaultKey = new byte[48];
+                    //System.arraycopy(fileData, SALT_LENGTH, encryptedVaultKey, 0, 48);
         
                     // Decrypt vault key using root key
-                    encryptedVaultKey = decryptAESGCM(encryptedVaultKey.toString().getBytes(), rootKey.toString().getBytes());
+                
+                    encryptedVaultKey = decryptAESGCM(col.getData("key").toJSON().getBytes(), encryptedRootKey.toString().getBytes());
                     
                     // Extract encrypted vault data (remaining bytes)
                     byte[] encryptedVaultData = new byte[fileData.length - (SALT_LENGTH + 48)];
@@ -165,18 +170,17 @@ public class Vault implements Serializable{
      * @throws Exception
      */
     public static void createNewVault(String password) throws Exception {
-    
-
+        // Set up initial collection of objects
         collection = new Collection();
 
+        // Add vaules
         collection.addSaltValue(Base64.getEncoder().encodeToString(salt));
-  
         collection.addIv(Base64.getEncoder().encodeToString(iv));
         collection.addKey(Base64.getEncoder().encodeToString(encryptedVaultKey));
 
+        // Write serialized format
         JsonIO.writeSerializedObject(collection, new File(VAULT_JSON_PATH));
 
-      
         System.out.println("New vault created and encrypted.");
     }
 

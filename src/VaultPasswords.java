@@ -16,6 +16,7 @@ public class VaultPasswords {
     private static final int GCM_TAG_LENGTH = 128;
     private static final int IV_LENGTH = 12;
     private static SecretKey vaultKey;
+   
 
     public static void main(String[] args) {
         loadVault();
@@ -50,12 +51,13 @@ public class VaultPasswords {
     public static void addPasswordAccount(String service, String username, String password) {
         try {
             File vaultFile = new File(VAULT_FILE);
-            JSONObject vault;
+            Collection vault;
             
             if (vaultFile.exists()) {
-                vault = JsonIO.readObject(vaultFile);
+                // Read exisiting contents from the vault file
+                vault = new Collection(JsonIO.readObject(vaultFile));
             } else {
-                vault = new JSONObject();
+                vault = new Collection();
             }
 
             JSONArray passwords = vault.containsKey("passwords") ? vault.getArray("passwords") : new JSONArray();
@@ -72,7 +74,7 @@ public class VaultPasswords {
             account.put("pass", encryptedPassword);
 
             passwords.add(account);
-            vault.put("passwords", passwords);
+            vault.addData("passwords", passwords);
 
             // Write JSON manually using PrintWriter (matches VaultKey behavior)
             try (PrintWriter writer = new PrintWriter(vaultFile, StandardCharsets.UTF_8)) {

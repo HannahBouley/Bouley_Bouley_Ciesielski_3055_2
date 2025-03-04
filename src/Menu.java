@@ -6,9 +6,9 @@ public class Menu {
      */
     public static String DisplayMenuText(){
 
-        String menuTitle = "--WELCOME-TO-THE-SECURE-VAULT--\n";
+        String menuTitle = "--WELCOME-TO-YOUR-SECURE-VAULT--\n";
 
-        String options = 
+        String options = "usage: \n" +
         "vault --add --service <name> --user <uname> \n" + 
         "vault --add --service <name> --user <uname> --gen <len> \n" +
         "vault --add --service <name> --key <key> \n" +
