@@ -19,6 +19,7 @@ class Driver {
     private static final String VAULT_JSON_PATH = "vault.json";
     private static File vaultFile = new File(VAULT_JSON_PATH);
 
+    private static Collection col;
     private static boolean addService = false;
     private static boolean addUserName = false;
     private static boolean generatePassword = false;
@@ -32,7 +33,7 @@ class Driver {
     public static void main(String[] args) {
         // Load (unseal) the vault at startup
         Vault vault = new Vault();
-                
+
         try {
             vault.loadVault();
         } catch (FileNotFoundException e) {
@@ -43,6 +44,15 @@ class Driver {
             System.out.println("Error loading vault: " + e.getMessage());
             e.printStackTrace();
             return;
+        }
+
+        // Load a new collection with the objects already in the json file
+        try {
+            col = new Collection(JsonIO.readObject(new File(VAULT_JSON_PATH)));
+        } catch (Exception e) {
+            System.out.println("Could not find file");
+            e.printStackTrace();
+            System.exit(1);
         }
 
         // Ensure vault is sealed before the application exits
@@ -106,6 +116,11 @@ class Driver {
                     passwordLen = Integer.parseInt(currOpt.getSecond());
                     break;
                 case '?':
+                    // Add a password, service, and username to the vault
+                    if (addService && service != null && user != null){
+                      
+                        VaultPasswords.addPasswordAccount(service, user, password);
+                    }
                     break;
                 default:
                     break;

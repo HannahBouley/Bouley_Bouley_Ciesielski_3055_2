@@ -1,8 +1,12 @@
 {
-   "salt" : "/F95UdXfKJIvdqUEUen2Ng==",
+   "salt" : "3Ofamsv3piv9crSFyt69BA==",
+   "passwords" : [
+   ],
    "vaultKey" : {
-      "iv" : "Cq/JbH7PAdU7B51w",
-      "key" : "Cq/JbH7PAdU7B51wTudD/jdLFz3vR6nRtYnyYZw9BHD7CH0Z8hFVSYeRbumTmPRZYARL3kO1osVMkQAG"
-   }
+      "iv" : "bJTvLmwc5CAcUeHL",
+      "key" : "bJTvLmwc5CAcUeHL7VDTmtJUJAaYGAEqZOF5vPAr4kI18cmnTrRiZaUjJpLu7L6eYY0KA7LPKOojoPuq"
+   },
+   "privKeys" : [
+   ]
 }
 
