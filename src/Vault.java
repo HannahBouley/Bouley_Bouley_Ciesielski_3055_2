@@ -110,7 +110,7 @@ public class Vault{
             
             {
 
-                collection = new Collection(JsonIO.readObject(new File(VAULT_JSON_PATH)));
+                // collection = new Collection(JsonIO.readObject(new File(VAULT_JSON_PATH)));
 
                 // Get password input
                 System.out.println("Enter the vault password: ");
@@ -209,6 +209,7 @@ public class Vault{
             return;
         }
 
+        
         // Read all of the values in the json file
         collection = new Collection(JsonIO.readObject(new File(VAULT_JSON_PATH)));
 
@@ -243,6 +244,7 @@ public class Vault{
      */
     public SecretKey unsealVault(SecretKey rk) throws Exception {
 
+
         collection = new Collection(JsonIO.readObject(new File(VAULT_JSON_PATH)));
         
         byte[] iv = Base64.getDecoder().decode(collection.getIvData("iv"));
@@ -254,6 +256,10 @@ public class Vault{
         SecretKey vaultKey = new SecretKeySpec(vaultKeyBytes, "AES");
 
         return vaultKey;
+    }
+
+    public Collection getCollection(){
+        return collection;
     }
     /**
      * Derive a key from the given password and salt using the SCrypt key derivation function.

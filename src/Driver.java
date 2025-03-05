@@ -31,11 +31,12 @@ class Driver {
     private static int passwordLen = 0;
     private static String password;
     private static String key;
+    private static Vault vault = new Vault();
+    
 
     public static void main(String[] args) {
         // Load (unseal) the vault at startup
-        Vault vault = new Vault();
-
+       
         try {
             vault.loadVault();
         } catch (FileNotFoundException e) {
@@ -51,6 +52,7 @@ class Driver {
         // Load a new collection with the objects already in the json file
         try {
             col = new Collection(JsonIO.readObject(new File(VAULT_JSON_PATH)));
+
         } catch (Exception e) {
             System.out.println("Could not find file");
             e.printStackTrace();
@@ -138,15 +140,39 @@ class Driver {
               if (addService && service != null && user != null){
                 Console console = System.console();
 
+                if (passwordLen != 0){
+                    if (passwordLen < 7){
+                      
+                
+                        
+                        if (console == null){
+                            System.out.println("No console available");
+                            System.exit(1);
+                        } else {
+                            VaultPasswords.addRandomPasswordAccount(service, user, passwordLen, col);
+                        }
+
+
+                    }
+                }
+
                 if (console == null){
                     System.out.println("No console available.");
+                    System.exit(1);
                 } else {
                     System.out.println("Enter password for account:");
 
                     char[] hiddenpassword = console.readPassword();
                     password = new String(hiddenpassword);
+              
+                    
+                    if (passwordLen < 7){
+                        System.out.println("WARANING: STRONG PASSWORDS SHOULD BE AT LEAST 7 CHARACTERS");
+                    }
+           
+
                 }
-                VaultPasswords.addPasswordAccount(service, user, password);
+                VaultPasswords.addPasswordAccount(service, user, password, col);
             }
     }
 }

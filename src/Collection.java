@@ -12,17 +12,16 @@ import merrimackutil.json.types.JSONType;
 public class Collection implements JSONSerializable{
 
     private HashMap<String, String> keyData; // Key value keyDatas
-    private HashMap<String, String> passwordData;
     private String salt;
     private String vaultKey;
     private String iv;
     private String key;
 
     // For user password and service
-    private String user;
-    private String pass;
-    private String useriv;
-    private String service;
+    private String user = null;
+    private String pass = null;
+    private String useriv = null;
+    private String service = null;
 
     /**
      * Creates new collection with a simple hash map
@@ -65,6 +64,7 @@ public class Collection implements JSONSerializable{
 	public JSONType toJSONType() {
 		JSONObject obj = new JSONObject(); // Main obj
         JSONObject keyObj = new JSONObject(); // Vault key atributes
+        JSONObject userObj = new JSONObject();
         JSONArray passwordArry = new JSONArray();
         JSONArray privateKeys = new JSONArray();
 
@@ -76,7 +76,22 @@ public class Collection implements JSONSerializable{
 		obj.put("salt", salt);
         obj.put("vaultKey", keyObj);
 
+        if (useriv != null && service != null && user != null && pass != null){
+            userObj.put("iv", " ");
+            userObj.put("service", " ");
+            userObj.put("user", " ");
+            userObj.put("pass", " ");
+        } else {
+            userObj.put("iv", useriv);
+            userObj.put("service", service);
+            userObj.put("user", user);
+            userObj.put("pass", pass);
+        }
+ 
+       
+        passwordArry.add(userObj);
         obj.put("passwords", passwordArry);
+    
         obj.put("privKeys", privateKeys);
         
 	
@@ -138,31 +153,17 @@ public class Collection implements JSONSerializable{
         return keyData.get(iv);
     }
 
-    public String getPasswordData(String p){
-        return passwordData.get(p);
-    }
 
-    public void addPasswordData(JSONArray passwordData){
+    public void addPasswordData(JSONObject passwordData){
         
-        for (int i = 0; i < passwordData.size(); i++){
-            if (passwordData.getObject(i).containsKey("user")){
-                user = passwordData.getString(i);
 
-            } else if (passwordData.getObject(i).containsKey("iv")){
-                useriv = passwordData.getString(i);
-
-            } else if (passwordData.getObject(i).containsKey("service")){
-                service = passwordData.getString(i);
-
-            } else if (passwordData.getObject(i).containsKey("pass")){
-                pass = passwordData.getString(i);
-
-            } else {
-                System.out.println("No such item found");
-                System.exit(1);
-            }
-        }
+        this.user = passwordData.getString("user");
+        this.iv = passwordData.getString("iv");
+        this.service = passwordData.getString("service");
+        this.pass = passwordData.getString("pass");
+    
     }
+    
 
     /**
      * Derserializes a JSON object into a readable form
@@ -172,16 +173,13 @@ public class Collection implements JSONSerializable{
     public void deserialize(JSONType obj) throws InvalidObjectException {
         JSONObject tmp;
         JSONObject vk;
-        JSONObject salt;
         JSONArray passwordsArry;
 
         if(obj instanceof JSONObject){
             tmp = (JSONObject) obj;
 
-       
-        
-
             if (tmp.containsKey("vaultKey")){
+                
                 vk = tmp.getObject("vaultKey");
 
                 keyData.put("iv", vk.getString("iv"));

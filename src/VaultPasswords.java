@@ -51,36 +51,32 @@ public class VaultPasswords {
         }
     }
 
-    public static void addPasswordAccount(String service, String username, String password) {
+    public static void addPasswordAccount(String service, String username, String password, Collection col) {
         try {
             File vaultFile = new File(VAULT_FILE);
-            Collection vault;
             
-            if (vaultFile.exists()) {
-                // Read exisiting contents from the vault file
-                vault = new Collection(JsonIO.readObject(vaultFile));
-            } else {
-                vault = new Collection();
-            }
-
+            Collection vault = col;
+         
+            
             JSONArray passwords = vault.containsKey("passwords") ? vault.getArray("passwords") : new JSONArray();
 
             // Generate IV (12 bytes)
             byte[] iv = generateIV();
-            String encodedIV = Base64.getEncoder().encodeToString(iv);
+            byte[] encodedIV = Base64.getEncoder().encodeToString(iv).getBytes();
 
+            vaultKey = new SecretKeySpec(col.getKeyData("key").getBytes(), "AES");
             // Encrypt the password
-            String encryptedPassword = encrypt(password, iv);
+            //String encryptedPassword = encrypt(password, iv);
 
             // Create a new account object and put it in the passwords json array
             JSONObject account = new JSONObject();
             account.put("iv", encodedIV);
             account.put("service", service);
             account.put("user", username);
-            account.put("pass", encryptedPassword);
-
-            passwords.add(account);
-            vault.addPasswordData(passwords);
+            account.put("pass", password);
+            
+            vault.addPasswordData(account);
+            
 
             JsonIO.writeSerializedObject(vault, vaultFile);
 
@@ -115,13 +111,13 @@ public class VaultPasswords {
      * @param username
      * @param passwordLength
      */
-    public static void addRandomPasswordAccount(String service, String username, int passwordLength) {
+    public static void addRandomPasswordAccount(String service, String username, int passwordLength, Collection col) {
         try {
             // Generate a random password
             String generatedPassword = generateRandomPassword(passwordLength);
             
             // Add it just like a normal password
-            addPasswordAccount(service, username, generatedPassword);
+            addPasswordAccount(service, username, generatedPassword, col);
             
             System.out.println("Generated password stored for service: " + service);
         } catch (Exception e) {
