@@ -11,17 +11,24 @@ import merrimackutil.json.types.JSONType;
 
 public class Collection implements JSONSerializable{
 
-    private HashMap<String, JSONType> pair; // Key value pairs
+    private HashMap<String, String> keyData; // Key value keyDatas
+    private HashMap<String, String> passwordData;
     private String salt;
     private String vaultKey;
     private String iv;
     private String key;
 
+    // For user password and service
+    private String user;
+    private String pass;
+    private String useriv;
+    private String service;
+
     /**
      * Creates new collection with a simple hash map
      */
     public Collection(){
-        this.pair = new HashMap<>();
+        this.keyData = new HashMap<>();
    
     }
 
@@ -31,7 +38,7 @@ public class Collection implements JSONSerializable{
      * @throws InvalidObjectException
      */
     public Collection(JSONObject obj) throws InvalidObjectException {
-        this.pair = new HashMap<>();
+        this.keyData = new HashMap<>();
         deserialize(obj);
 
     }
@@ -89,61 +96,73 @@ public class Collection implements JSONSerializable{
     }
 
     public void addData(String key, JSONType value){
+        
+        JSONArray block;
+
+        if (value instanceof JSONArray){
+
+            block = (JSONArray) value;
+
+            // Put the objects from the array into the array list
+            for (int i = 0; i < block.size(); i++){
+                keyData.put(block.getString(i), block.getObject(i).toString());
+            }
+        }
 
     }
 
     public boolean containsKey(String key){
-        return pair.get(key) != null;
+        return keyData.get(key) != null;
     }
 
     public JSONArray getArray(String arry){
         return JsonIO.readArray(arry);
     }
 
-    public JSONObject getData(String k){
-        return (JSONObject) pair.get(k);
+    public String getKeyData(String k){
+
+        return keyData.get(k);
     }
 
+    public String getIvData(String iv){
+        
+        return keyData.get(iv);
+    }
+
+    public String getPasswordData(String p){
+        return passwordData.get(p);
+    }
+
+    public void addPasswordData(JSONArray passwordData){
+        
+        for (int i = 0; i < passwordData.size(); i++){
+
+        }
+    }
+
+    /**
+     * Derserializes a JSON object into a readable form
+     * @param obj
+     * @throws InvalidObjectException
+     */
     public void deserialize(JSONType obj) throws InvalidObjectException {
         JSONObject tmp;
-        JSONObject key;
-        JSONArray block = null;
-  
-        if (obj instanceof JSONObject)
-        {
-          tmp = (JSONObject) obj;
+        JSONObject vk;
+
+        if(obj instanceof JSONObject){
+            tmp = (JSONObject) obj;
+
+            if (tmp.containsKey("vaultKey")){
+                vk = tmp.getObject("vaultKey");
+
+                keyData.put("iv", vk.getString("iv"));
+                keyData.put("key", vk.getString("key"));
 
 
-        // Get the passwords array in the json file
-        if (tmp.containsKey("passwords")){
 
-            block = tmp.getArray("passwords");
-
-                
-        pair.clear();
-        for (int i = 0; i < block.size(); i++)
-            pair.put(block.getObject(i).getString("user"), block.getObject(i));
+            }
         }
-              
-        else if (tmp.get("vaultKey") != null){
-      
-            key = tmp.getObject("key");
 
-            pair.clear();
-            pair.put("key", key);
-            
-
-        }
         
-    
-          else 
-            throw new InvalidObjectException("Expected a PubKeyRing object -- keys expected.");
-        }
-        else 
-          throw new InvalidObjectException("Expected a PubKeyRing object -- recieved array");
-  
-     
-     }
-
-    
+    }
 }
