@@ -55,7 +55,7 @@ public class VaultPasswords {
             
             if (vaultFile.exists()) {
                 // Read exisiting contents from the vault file
-                vault = new Collection(JsonIO.readObject(vaultFile));
+                vault = new Collection();
             } else {
                 vault = new Collection();
             }
@@ -67,6 +67,7 @@ public class VaultPasswords {
             String encodedIV = Base64.getEncoder().encodeToString(iv);
             String encryptedPassword = encrypt(password, iv);
 
+            // Create a new password object and put it in the passwords json array
             JSONObject account = new JSONObject();
             account.put("iv", encodedIV);
             account.put("service", service);
@@ -74,12 +75,9 @@ public class VaultPasswords {
             account.put("pass", encryptedPassword);
 
             passwords.add(account);
-            vault.addData("passwords", passwords);
+            vault.addPasswordData(passwords);
 
-            // Write JSON manually using PrintWriter (matches VaultKey behavior)
-            try (PrintWriter writer = new PrintWriter(vaultFile, StandardCharsets.UTF_8)) {
-                writer.write(vault.toString());
-            }
+            JsonIO.writeFormattedObject(vault, vaultFile);
 
             System.out.println("Password successfully added to vault.json");
         } catch (Exception e) {
