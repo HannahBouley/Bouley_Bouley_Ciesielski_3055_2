@@ -1,6 +1,7 @@
 import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
@@ -8,6 +9,9 @@ import java.security.Security;
 import java.security.spec.InvalidKeySpecException;
 import java.security.spec.KeySpec;
 import java.util.Base64;
+import java.util.HashMap;
+import java.util.Map;
+
 import javax.crypto.*;
 import javax.crypto.spec.GCMParameterSpec;
 import javax.crypto.spec.PBEKeySpec;
@@ -120,24 +124,25 @@ public class Vault{
             
                 String enteredHashed = hashPassword(password, salt);
             
+                // Grant access with correct password and unseal vault
                 if (enteredHashed.equals(storedHashed)){
                     System.out.println("Access Granted");
 
+                    // Derive the root key from the password
                     encryptedRootKey = deriveKey(password, salt);
                     rootKey = new SecretKeySpec(encryptedRootKey, "AES");
             
                     byte[] fileData = Files.readAllBytes(vaultFile.toPath());
-        
-                    // Extract encrypted vault key (next 48 bytes: 16-byte IV + 32-byte encrypted key)
-                    //encryptedVaultKey = new byte[48];
-                    //System.arraycopy(fileData, SALT_LENGTH, encryptedVaultKey, 0, 48);
+
+                    // Use rootkey to unseal the vault (returns vault key used for decrypting)
+                    vaultKey = unsealVault(rootKey);
         
                     // Decrypt the vault key by using the root key
                     encryptedVaultKey = decryptAESGCM(Base64.getDecoder().decode(collection.getKeyData("key")), rootKey, Base64.getDecoder().decode(collection.getIvData("iv")));
                     
                     // Extract encrypted vault data (remaining bytes)
                     byte[] encryptedVaultData = new byte[fileData.length - (SALT_LENGTH + 48)];
-                    System.arraycopy(fileData, SALT_LENGTH + 48, encryptedVaultData, 0, encryptedVaultData.length);
+                    //System.arraycopy(fileData, SALT_LENGTH + 48, encryptedVaultData, 0, encryptedVaultData.length);
         
                     // Decrypt vault data using vault key  
                     vaultKey = new SecretKeySpec(encryptedVaultKey, "AES");
@@ -194,18 +199,30 @@ public class Vault{
      * 
      * @throws Exception
      */
+    @SuppressWarnings("unused")
     public void sealVault() throws Exception {
+
+        HashMap<String, String> data = new HashMap<>();
+
         if (vaultData == null) {
             System.out.println("No vault loaded to seal.");
             return;
         }
 
+        // Read all of the values in the json file
+        collection = new Collection(JsonIO.readObject(new File(VAULT_JSON_PATH)));
+
+        data = collection.getAllData();
+    
+
+        // Encrpyt each value
+        for (Map.Entry<String, String> entry : data.entrySet()) {
+            encryptAESGCM(entry.getValue().getBytes(), rootKey, iv);
+        }
+
 
         // Encrypt the vault key using root key
         encryptedVaultKey = encryptAESGCM(vaultKey.getEncoded(), rootKey, vaultKeyIv);
-
-        // Encrypt vault data using vault key
-        byte[] encryptedVaultData = encryptAESGCM(Files.readAllBytes(new File(VAULT_JSON_PATH).toPath()), vaultKey, vaultKeyIv);
 
         // Retrieve existing salt
         byte[] salt = collection.getSaltValue("salt").getBytes();
@@ -220,6 +237,24 @@ public class Vault{
         System.out.println("Vault sealed and saved.");
     }
 
+    /**
+     * Unseal the vault by extracting the data from the vault.json file and decrypting
+     * @throws Exception
+     */
+    public SecretKey unsealVault(SecretKey rk) throws Exception {
+
+        collection = new Collection(JsonIO.readObject(new File(VAULT_JSON_PATH)));
+        
+        byte[] iv = Base64.getDecoder().decode(collection.getIvData("iv"));
+        byte[] encryptedVaultKey = Base64.getDecoder().decode(collection.getKeyData("key"));
+
+        SecretKey rootKey = rk;
+
+        byte[] vaultKeyBytes = decryptAESGCM(encryptedVaultKey, rootKey, iv);
+        SecretKey vaultKey = new SecretKeySpec(vaultKeyBytes, "AES");
+
+        return vaultKey;
+    }
     /**
      * Derive a key from the given password and salt using the SCrypt key derivation function.
      * 

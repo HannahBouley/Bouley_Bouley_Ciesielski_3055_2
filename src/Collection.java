@@ -43,6 +43,11 @@ public class Collection implements JSONSerializable{
 
     }
 
+    public HashMap<String, String> getAllData(){
+  
+        return this.keyData;
+    }
+
     	/**
 	 * Serializes the object into a JSON encoded string.
 	 * 
@@ -167,10 +172,14 @@ public class Collection implements JSONSerializable{
     public void deserialize(JSONType obj) throws InvalidObjectException {
         JSONObject tmp;
         JSONObject vk;
+        JSONObject salt;
         JSONArray passwordsArry;
 
         if(obj instanceof JSONObject){
             tmp = (JSONObject) obj;
+
+       
+        
 
             if (tmp.containsKey("vaultKey")){
                 vk = tmp.getObject("vaultKey");
@@ -198,6 +207,6 @@ public class Collection implements JSONSerializable{
             }
         }
 
-        System.out.println(keyData);
+    
     }
 }
