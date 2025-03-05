@@ -14,16 +14,16 @@ import merrimackutil.cli.OptionParser;
 import merrimackutil.json.JsonIO;
 import merrimackutil.json.parser.JSONParser;
 
-public class VaultKey {
+public class vaultkey {
     private static final int VAULT_KEY_SIZE = 32; // 256-bit key
     private static final int IV_SIZE = 12; // 96-bit IV for AES-GCM
     private static final String VAULT_FILE = "vault.json";
 
     public static void main(String[] args) {
-        generateVaultKey();
+        generatevaultkey();
     }
 
-    public static void generateVaultKey() {
+    public static void generatevaultkey() {
         SecureRandom secureRandom = new SecureRandom();
 
         // Generate Vault Key (32 bytes for AES-256)
@@ -36,10 +36,16 @@ public class VaultKey {
         secureRandom.nextBytes(ivBytes);
         String encodedIV = Base64.getEncoder().encodeToString(ivBytes);
 
+        // Verify that decoding the key returns exactly 32 bytes
+        byte[] decodedKey = Base64.getDecoder().decode(encodedKey);
+        if (decodedKey.length != VAULT_KEY_SIZE) {
+            throw new IllegalStateException("Decoded key length is not 32 bytes!");
+        }
+
         // Create vault key object
-        JSONObject vaultKeyObject = new JSONObject();
-        vaultKeyObject.put("iv", encodedIV);
-        vaultKeyObject.put("key", encodedKey);
+        JSONObject vaultkeyObject = new JSONObject();
+        vaultkeyObject.put("iv", encodedIV);
+        vaultkeyObject.put("key", encodedKey);
 
         // Load or create vault.json
         JSONObject vault;
@@ -52,7 +58,7 @@ public class VaultKey {
             }
             
             // Store the vaultkey in vault.json
-            vault.put("vaultkey", vaultKeyObject);
+            vault.put("vaultkey", vaultkeyObject);
             
             // Write JSON as a string manually
             try (PrintWriter writer = new PrintWriter(vaultFile, StandardCharsets.UTF_8)) {
@@ -64,4 +70,3 @@ public class VaultKey {
         }
     }
 }
-

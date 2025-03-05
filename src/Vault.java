@@ -34,12 +34,12 @@ public class Vault{
     private static final int SALT_LENGTH = 16;
     private static final int VAULT_KEY_LENGTH = 32; // 256-bit vault key
     
-    private static byte[] vaultKeyIv;
+    private static byte[] vaultkeyIv;
     private static SecretKey rootKey;  // Derived from user password
-    private static SecretKey vaultKey; // Used to encrypt/decrypt vault contents
+    private static SecretKey vaultkey; // Used to encrypt/decrypt vault contents
     private static JSONObject vaultData; // In-memory vault contents
     private static SecretKey secretKey;
-    private static byte[] encryptedVaultKey;
+    private static byte[] encryptedvaultkey;
     private static byte[] encryptedRootKey;
     private static byte[] iv;
  
@@ -50,12 +50,19 @@ public class Vault{
     private static File vaultFile = new File(VAULT_JSON_PATH);
     private static Collection collection;
 
+    public static SecretKey getVaultKey() {
+        return vaultkey;
+    }
+
+    
     /**
      * Load the vault from the vault.json file.
      * 
      * @throws Exception
      */
     public void loadVault() throws Exception {
+
+        
 
         // Add provider
         Security.addProvider(new BouncyCastleProvider());
@@ -89,18 +96,18 @@ public class Vault{
             // Generate a new vault key (to be encrypted by the root key)
             KeyGenerator gen = KeyGenerator.getInstance("AES");
             gen.init(256);
-            vaultKey = gen.generateKey();
+            vaultkey = gen.generateKey();
 
             // Generate new Iv
-            vaultKeyIv = new byte[12];
-            new SecureRandom().nextBytes(vaultKeyIv);
+            vaultkeyIv = new byte[12];
+            new SecureRandom().nextBytes(vaultkeyIv);
 
             // Generate a new root key from the password
             encryptedRootKey = deriveKey(password, salt);
             rootKey = new SecretKeySpec(encryptedRootKey, "AES");
 
             // The encrypted vault key
-            encryptedVaultKey = encryptAESGCM(vaultKey.getEncoded(), rootKey, vaultKeyIv);
+            encryptedvaultkey = encryptAESGCM(vaultkey.getEncoded(), rootKey, vaultkeyIv);
             
             createNewVault(password); // Create a new vault
 
@@ -135,18 +142,18 @@ public class Vault{
                     byte[] fileData = Files.readAllBytes(vaultFile.toPath());
 
                     // Use rootkey to unseal the vault (returns vault key used for decrypting)
-                    vaultKey = unsealVault(rootKey);
+                    vaultkey = unsealVault(rootKey);
         
                     // Decrypt the vault key by using the root key
-                    encryptedVaultKey = decryptAESGCM(Base64.getDecoder().decode(collection.getKeyData("key")), rootKey, Base64.getDecoder().decode(collection.getIvData("iv")));
+                  //  encryptedvaultkey = decryptAESGCM(Base64.getDecoder().decode(collection.getKeyData("key")), rootKey, Base64.getDecoder().decode(collection.getIvData("iv")));
                     
                     // Extract encrypted vault data (remaining bytes)
                     byte[] encryptedVaultData = new byte[fileData.length - (SALT_LENGTH + 48)];
                     //System.arraycopy(fileData, SALT_LENGTH + 48, encryptedVaultData, 0, encryptedVaultData.length);
         
                     // Decrypt vault data using vault key  
-                    vaultKey = new SecretKeySpec(encryptedVaultKey, "AES");
-                    // byte[] decryptedData = decryptAESGCM(Files.readAllBytes(new File(VAULT_JSON_PATH).toPath()), vaultKey, Base64.getDecoder().decode(collection.getIvData("iv")));
+                 //   vaultkey = new SecretKeySpec(encryptedvaultkey, "AES");
+                    // byte[] decryptedData = decryptAESGCM(Files.readAllBytes(new File(VAULT_JSON_PATH).toPath()), vaultkey, Base64.getDecoder().decode(collection.getIvData("iv")));
                     vaultData = new JSONObject();
                     // vaultData.put(new String(decryptedData, StandardCharsets.UTF_8), new JSONObject());
                   
@@ -185,8 +192,8 @@ public class Vault{
 
         // Add vaules
         collection.addSaltValue(Base64.getEncoder().encodeToString(salt));
-        collection.addIv(Base64.getEncoder().encodeToString(vaultKeyIv));
-        collection.addKey(Base64.getEncoder().encodeToString(encryptedVaultKey));
+        collection.addIv(Base64.getEncoder().encodeToString(vaultkeyIv));
+        collection.addKey(Base64.getEncoder().encodeToString(encryptedvaultkey));
 
         // Write serialized format
         JsonIO.writeSerializedObject(collection, new File(VAULT_JSON_PATH));
@@ -222,15 +229,15 @@ public class Vault{
 
 
         // Encrypt the vault key using root key
-        encryptedVaultKey = encryptAESGCM(vaultKey.getEncoded(), rootKey, vaultKeyIv);
+        encryptedvaultkey = encryptAESGCM(vaultkey.getEncoded(), rootKey, vaultkeyIv);
 
         // Retrieve existing salt
         byte[] salt = collection.getSaltValue("salt").getBytes();
 
         // Write salt + encrypted vault key + encrypted vault data to vault.json
         collection.addSaltValue(Base64.getEncoder().encodeToString(salt));
-        collection.addIv(Base64.getEncoder().encodeToString(vaultKeyIv));
-        collection.addKey(Base64.getEncoder().encodeToString(encryptedVaultKey));
+        collection.addIv(Base64.getEncoder().encodeToString(vaultkeyIv));
+        collection.addKey(Base64.getEncoder().encodeToString(encryptedvaultkey));
 
         JsonIO.writeSerializedObject(collection, new File(VAULT_JSON_PATH));
         
@@ -242,19 +249,28 @@ public class Vault{
      * @throws Exception
      */
     public SecretKey unsealVault(SecretKey rk) throws Exception {
-
         collection = new Collection(JsonIO.readObject(new File(VAULT_JSON_PATH)));
         
+        // Decode and trim to remove any extraneous characters
         byte[] iv = Base64.getDecoder().decode(collection.getIvData("iv"));
-        byte[] encryptedVaultKey = Base64.getDecoder().decode(collection.getKeyData("key"));
-
+        String keyData = collection.getKeyData("key").trim();
+        byte[] encryptedvaultkey = Base64.getDecoder().decode(keyData);
+    
         SecretKey rootKey = rk;
-
-        byte[] vaultKeyBytes = decryptAESGCM(encryptedVaultKey, rootKey, iv);
-        SecretKey vaultKey = new SecretKeySpec(vaultKeyBytes, "AES");
-
-        return vaultKey;
+    
+        // Decrypt the vault key
+        byte[] vaultkeyBytes = decryptAESGCM(encryptedvaultkey, rootKey, iv);
+        
+        // Debug print: check the length of the decrypted key
+        System.out.println("Decrypted vault key length: " + vaultkeyBytes.length);
+        if (vaultkeyBytes.length != 32) {
+            throw new IllegalStateException("Decrypted vault key has invalid length: " + vaultkeyBytes.length);
+        }
+        
+        SecretKey vaultkey = new SecretKeySpec(vaultkeyBytes, "AES");
+        return vaultkey;
     }
+    
     /**
      * Derive a key from the given password and salt using the SCrypt key derivation function.
      * 

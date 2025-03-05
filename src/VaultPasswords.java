@@ -18,46 +18,41 @@ public class VaultPasswords {
     private static final String VAULT_FILE = "vault.json";
     private static final int GCM_TAG_LENGTH = 128;
     private static final int IV_LENGTH = 12;
-    private static SecretKey vaultKey;
+    private static SecretKey vaultkey;
    
-
     public static void main(String[] args) {
-        loadVault();
-    }
-
-    public static void loadVault() {
-        File file = new File(VAULT_FILE);
-        JSONObject vault;
-
+        Vault vaultInstance = new Vault();
         try {
-            if (file.exists()) {
-                vault = JsonIO.readObject(file);
-                
-                // Load vault key
-                if (vault.containsKey("vaultkey")) {
-                    JSONObject vaultKeyObject = vault.getObject("vaultkey");
-                    String keyBase64 = vaultKeyObject.getString("key");
-
-                    byte[] keyBytes = Base64.getDecoder().decode(keyBase64);
-                    vaultKey = new SecretKeySpec(keyBytes, "AES");
-                } else {
-                    throw new IllegalStateException("Vault key not found in vault.json");
-                }
-            } else {
-                throw new IllegalStateException("Vault file not found");
-            }
+            vaultInstance.loadVault();
         } catch (Exception e) {
             e.printStackTrace();
+            System.exit(1);
         }
+        
+        loadVault();
+        
+        addPasswordAccount("service", "username", "password");
     }
+    
+
+    public static void loadVault() {
+        // Instead of reading the vault file, obtain the decrypted key from Vault.
+        vaultkey = Vault.getVaultKey();
+        if (vaultkey == null) {
+            throw new IllegalStateException("Vault key is not initialized");
+        }
+        System.out.println("Vault key loaded successfully. (Key length: " + vaultkey.getEncoded().length + " bytes)");
+    }
+    
 
     public static void addPasswordAccount(String service, String username, String password) {
         try {
+            loadVault();
             File vaultFile = new File(VAULT_FILE);
             Collection vault;
             
             if (vaultFile.exists()) {
-                // Read exisiting contents from the vault file
+                // Read existing contents from the vault file
                 vault = new Collection(JsonIO.readObject(vaultFile));
             } else {
                 vault = new Collection();
@@ -66,13 +61,13 @@ public class VaultPasswords {
             JSONArray passwords = vault.containsKey("passwords") ? vault.getArray("passwords") : new JSONArray();
 
             // Generate IV (12 bytes)
-            byte[] iv = generateIV();
-            String encodedIV = Base64.getEncoder().encodeToString(iv);
-
+            byte[] ivBytes = generateIV();
+            String encodedIV = Base64.getEncoder().encodeToString(ivBytes);
+            
             // Encrypt the password
-            String encryptedPassword = encrypt(password, iv);
+            String encryptedPassword = encrypt(password, ivBytes);
 
-            // Create a new account object and put it in the passwords json array
+            // Create a new account object and put it in the passwords JSON array
             JSONObject account = new JSONObject();
             account.put("iv", encodedIV);
             account.put("service", service);
@@ -97,13 +92,14 @@ public class VaultPasswords {
     }
 
     private static String encrypt(String data, byte[] iv) throws Exception {
-        if (vaultKey == null) {
+        loadVault();
+        if (vaultkey == null) {
             throw new IllegalStateException("Vault key is not initialized");
         }
 
         Cipher cipher = Cipher.getInstance("AES/GCM/NoPadding");
         GCMParameterSpec spec = new GCMParameterSpec(GCM_TAG_LENGTH, iv);
-        cipher.init(Cipher.ENCRYPT_MODE, vaultKey, spec);
+        cipher.init(Cipher.ENCRYPT_MODE, vaultkey, spec);
         byte[] encrypted = cipher.doFinal(data.getBytes(StandardCharsets.UTF_8));
         return Base64.getEncoder().encodeToString(encrypted);
     }

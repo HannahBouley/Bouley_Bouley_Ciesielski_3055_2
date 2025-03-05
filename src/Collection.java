@@ -14,7 +14,7 @@ public class Collection implements JSONSerializable{
     private HashMap<String, String> keyData; // Key value keyDatas
     private HashMap<String, String> passwordData;
     private String salt;
-    private String vaultKey;
+    private String vaultkey;
     private String iv;
     private String key;
 
@@ -74,7 +74,7 @@ public class Collection implements JSONSerializable{
 
         // Salt
 		obj.put("salt", salt);
-        obj.put("vaultKey", keyObj);
+        obj.put("vaultkey", keyObj);
 
         obj.put("passwords", passwordArry);
         obj.put("privKeys", privateKeys);
@@ -92,8 +92,8 @@ public class Collection implements JSONSerializable{
         return keyData.get(s);
     }
 
-    public void addVaultKey(String vaultKey){
-        this.vaultKey = vaultKey;
+    public void addvaultkey(String vaultkey){
+        this.vaultkey = vaultkey;
     }
 
     public void addKey(String key){
@@ -181,8 +181,8 @@ public class Collection implements JSONSerializable{
        
         
 
-            if (tmp.containsKey("vaultKey")){
-                vk = tmp.getObject("vaultKey");
+            if (tmp.containsKey("vaultkey")){
+                vk = tmp.getObject("vaultkey");
 
                 keyData.put("iv", vk.getString("iv"));
                 keyData.put("key", vk.getString("key"));

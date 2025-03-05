@@ -1,12 +1,12 @@
 {
-   "salt" : "dZBEDzgX9QfXRPp4b2a/kw==",
+   "salt" : null,
    "passwords" : [
    ],
-   "vaultKey" : {
-      "iv" : "hAisH7pkhU4es4+Q",
-      "key" : "Wf8KFSW55nnd1ftnQBKiPCsr83ClXLmrdZMLGm3Ow5RQWIMRxKwfB51Tj+ydJFeE"
-   },
    "privKeys" : [
-   ]
+   ],
+   "vaultkey" : {
+      "iv" : null,
+      "key" : null
+   }
 }
 
