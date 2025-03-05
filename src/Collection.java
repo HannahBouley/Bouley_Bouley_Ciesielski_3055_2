@@ -83,6 +83,10 @@ public class Collection implements JSONSerializable{
         this.salt = salt;
     }
 
+    public String getSaltValue(String s){
+        return keyData.get(s);
+    }
+
     public void addVaultKey(String vaultKey){
         this.vaultKey = vaultKey;
     }
@@ -136,7 +140,22 @@ public class Collection implements JSONSerializable{
     public void addPasswordData(JSONArray passwordData){
         
         for (int i = 0; i < passwordData.size(); i++){
+            if (passwordData.getObject(i).containsKey("user")){
+                user = passwordData.getString(i);
 
+            } else if (passwordData.getObject(i).containsKey("iv")){
+                useriv = passwordData.getString(i);
+
+            } else if (passwordData.getObject(i).containsKey("service")){
+                service = passwordData.getString(i);
+
+            } else if (passwordData.getObject(i).containsKey("pass")){
+                pass = passwordData.getString(i);
+
+            } else {
+                System.out.println("No such item found");
+                System.exit(1);
+            }
         }
     }
 
@@ -148,6 +167,7 @@ public class Collection implements JSONSerializable{
     public void deserialize(JSONType obj) throws InvalidObjectException {
         JSONObject tmp;
         JSONObject vk;
+        JSONArray passwordsArry;
 
         if(obj instanceof JSONObject){
             tmp = (JSONObject) obj;
@@ -157,12 +177,27 @@ public class Collection implements JSONSerializable{
 
                 keyData.put("iv", vk.getString("iv"));
                 keyData.put("key", vk.getString("key"));
+            }
 
+            if (tmp.containsKey("passwords")){
+             
+                passwordsArry = tmp.getArray("passwords");
 
+                for (int i = 0; i < passwordsArry.size(); i++){
 
+                    if (passwordsArry.getObject(i).containsKey("iv")){
+                        keyData.put("useriv", passwordsArry.getString(i));
+                    } else if (passwordsArry.getObject(i).containsKey("service")){
+                        keyData.put("service", passwordsArry.getString(i));
+                    } else if (passwordsArry.getObject(i).containsKey("user")){
+                        keyData.put("user", passwordsArry.getString(i));
+                    } else if (passwordsArry.getObject(i).containsKey("pass")){
+                        keyData.put("pass", passwordsArry.getString(i));
+                    }
+                }
             }
         }
 
-        
+        System.out.println(keyData);
     }
 }
