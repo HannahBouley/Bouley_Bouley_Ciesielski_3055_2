@@ -106,7 +106,7 @@ public class Vault{
             
             {
 
-                Collection col = new Collection(JsonIO.readObject(new File(VAULT_JSON_PATH)));
+                collection = new Collection(JsonIO.readObject(new File(VAULT_JSON_PATH)));
 
                 // Get password input
                 System.out.println("Enter the vault password: ");
@@ -132,18 +132,19 @@ public class Vault{
                     //encryptedVaultKey = new byte[48];
                     //System.arraycopy(fileData, SALT_LENGTH, encryptedVaultKey, 0, 48);
         
-                    encryptedVaultKey = decryptAESGCM(Base64.getDecoder().decode(col.getKeyData("key")), rootKey, Base64.getDecoder().decode(col.getIvData("iv")));
+                    // Decrypt the vault key by using the root key
+                    encryptedVaultKey = decryptAESGCM(Base64.getDecoder().decode(collection.getKeyData("key")), rootKey, Base64.getDecoder().decode(collection.getIvData("iv")));
                     
                     // Extract encrypted vault data (remaining bytes)
                     byte[] encryptedVaultData = new byte[fileData.length - (SALT_LENGTH + 48)];
                     System.arraycopy(fileData, SALT_LENGTH + 48, encryptedVaultData, 0, encryptedVaultData.length);
         
-                    // Decrypt vault data using vault key
-                    /*
-                    byte[] decryptedData = decryptAESGCM(encryptedVaultData, vaultKey.getEncoded());
+                    // Decrypt vault data using vault key  
+                    vaultKey = new SecretKeySpec(encryptedVaultKey, "AES");
+                    // byte[] decryptedData = decryptAESGCM(Files.readAllBytes(new File(VAULT_JSON_PATH).toPath()), vaultKey, Base64.getDecoder().decode(collection.getIvData("iv")));
                     vaultData = new JSONObject();
-                    vaultData.put(new String(decryptedData, StandardCharsets.UTF_8), new JSONObject());
-                  */
+                    // vaultData.put(new String(decryptedData, StandardCharsets.UTF_8), new JSONObject());
+                  
                     System.out.println("Vault successfully loaded.");
                 } else {
                     System.out.println("Incorrect password. Access denied.");
@@ -199,25 +200,23 @@ public class Vault{
             return;
         }
 
+
         // Encrypt the vault key using root key
-        //encryptedVaultKey = encryptAESGCM(vaultKey.getEncoded(), rootKey.getEncoded());
+        encryptedVaultKey = encryptAESGCM(vaultKey.getEncoded(), rootKey, vaultKeyIv);
 
         // Encrypt vault data using vault key
-        // byte[] encryptedVaultData = encryptAESGCM(vaultData.toJSON().getBytes(StandardCharsets.UTF_8), vaultKey.getEncoded());
+        byte[] encryptedVaultData = encryptAESGCM(Files.readAllBytes(new File(VAULT_JSON_PATH).toPath()), vaultKey, vaultKeyIv);
 
         // Retrieve existing salt
-        byte[] salt = new byte[SALT_LENGTH];
-        try (FileInputStream fis = new FileInputStream(VAULT_JSON_PATH)) {
-            fis.read(salt);
-        }
+        byte[] salt = collection.getSaltValue("salt").getBytes();
 
         // Write salt + encrypted vault key + encrypted vault data to vault.json
-        try (FileOutputStream fos = new FileOutputStream(VAULT_JSON_PATH)) {
-            fos.write(salt);
-            fos.write(encryptedVaultKey);
-            //fos.write(encryptedVaultData);
-        }
+        collection.addSaltValue(Base64.getEncoder().encodeToString(salt));
+        collection.addIv(Base64.getEncoder().encodeToString(vaultKeyIv));
+        collection.addKey(Base64.getEncoder().encodeToString(encryptedVaultKey));
 
+        JsonIO.writeSerializedObject(collection, new File(VAULT_JSON_PATH));
+        
         System.out.println("Vault sealed and saved.");
     }
 

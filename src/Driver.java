@@ -1,3 +1,4 @@
+import java.io.Console;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.PrintWriter;
@@ -29,6 +30,7 @@ class Driver {
     private static String user = null;
     private static int passwordLen = 0;
     private static String password;
+    private static String key;
 
     public static void main(String[] args) {
         // Load (unseal) the vault at startup
@@ -94,7 +96,7 @@ class Driver {
 
         // Set up a new parser to parse the options
         OptionParser parser = new OptionParser(args);
-        parser.setOptString("as:u:");
+        parser.setOptString("as:u:g:");
         parser.setLongOpts(argsList);
 
         // Gets the next option in the command line args
@@ -108,23 +110,43 @@ class Driver {
                     break;
                 case 's':
                     service = currOpt.getSecond();
+                    
                     break;
                 case 'u':
                     user = currOpt.getSecond();
+                  
                     break;
                 case 'g':
                     passwordLen = Integer.parseInt(currOpt.getSecond());
                     break;
+
+                case 'k':
+                    key = currOpt.getSecond();
+
+                    break;
+
                 case '?':
-                    // Add a password, service, and username to the vault
-                    if (addService && service != null && user != null){
-                      
-                        VaultPasswords.addPasswordAccount(service, user, password);
-                    }
+                   
                     break;
                 default:
                     break;
             }
+
         }
+
+              // Add a password, service, and username to the vault
+              if (addService && service != null && user != null){
+                Console console = System.console();
+
+                if (console == null){
+                    System.out.println("No console available.");
+                } else {
+                    System.out.println("Enter password for account:");
+
+                    char[] hiddenpassword = console.readPassword();
+                    password = new String(hiddenpassword);
+                }
+                VaultPasswords.addPasswordAccount(service, user, password);
+            }
     }
 }
